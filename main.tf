@@ -7,6 +7,31 @@ variable "image_name" {
   default = "hackaton_fiap-repo"
 }
 
+# Cria uma função IAM para as instâncias do EC2 para permitir que sejam gerenciadas pelo ECS
+resource "aws_iam_role" "ecs_instance_role" {
+  name = "ecs_instance_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Anexa uma política IAM à função do ECS para permitir que as instâncias do EC2 sejam gerenciadas pelo ECS
+resource "aws_iam_role_policy_attachment" "ecs_instance_policy_attachment" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+  role       = aws_iam_role.ecs_instance_role.name
+}
+
+
 # Cria a política de permissão do ECS para acessar o ECR
 resource "aws_ecs_task_definition" "fiap_deploy_task" {
   family                   = "fiap_deploy_task"
@@ -180,6 +205,21 @@ resource "aws_security_group" "ecs_sg" {
   cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+# Cria um perfil de instância EC2 para permitir que as instâncias do EC2 possam se registrar no cluster ECS
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2_profile"
+
+  role {
+    name = aws_iam_role.ecs_instance_role.name
+  }
+}
+
+# Cria um repositório do ECR para armazenar a imagem da aplicação
+resource "aws_ecr_repository" "fiap_repository" {
+  name = "fiap_repository"
+}
+
 
 #Cria a subrede do EC2
 resource "aws_subnet" "fiap_backend_subnet" {

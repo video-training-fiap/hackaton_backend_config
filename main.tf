@@ -7,6 +7,55 @@ variable "image_name" {
   default = "hackaton_fiap-repo"
 }
 
+resource "aws_iam_role" "ecs_instance_role" {
+  name = "ecs_instance_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  inline_policy {
+    name = "ecs_instance_policy"
+
+    policy = jsonencode({
+      Version = "2012-10-17",
+      Statement = [
+        {
+          Effect = "Allow",
+          Action = [
+            "ecs:CreateCluster",
+            "ecs:DeregisterContainerInstance",
+            "ecs:DiscoverPollEndpoint",
+            "ecs:Poll",
+            "ecs:RegisterContainerInstance",
+            "ecs:StartTelemetrySession",
+            "ecs:Submit*",
+            "ecr:GetAuthorizationToken",
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:GetRepositoryPolicy",
+            "ecr:DescribeRepositories",
+            "ecr:ListImages",
+            "ecr:BatchGetImage",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          Resource = "*"
+        }
+      ]
+    })
+  }
+}
+
 # Cria uma função IAM para as instâncias do EC2 para permitir que sejam gerenciadas pelo ECS
 resource "aws_iam_role" "ecs_instance_role" {
   name = "ecs_instance_role"

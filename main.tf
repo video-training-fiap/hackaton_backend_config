@@ -88,6 +88,7 @@ resource "aws_ecs_task_definition" "fiap_deploy_task" {
     {
       name  = "fiap_container"
       image = "${aws_ecr_repository.fiap_repository.repository_url}:${var.image_name}"
+      memory = 512
       portMappings = [
         {
           containerPort = 80
@@ -219,7 +220,7 @@ resource "aws_cloudwatch_event_target" "ecs_fiap_target" {
 # Cria os grupos de segurança do EC2 e ECS
 resource "aws_security_group" "ec2_sg" {
   name_prefix = "fiap-ec2-sg"
-  vpc_id = "vpc-12345"
+  vpc_id = "vpc-07a421d637fa328fc"
 
   ingress {
     from_port = 80
@@ -273,7 +274,7 @@ resource "aws_ecr_repository" "fiap_repository" {
 #Cria a subrede do EC2
 resource "aws_subnet" "fiap_backend_subnet" {
   vpc_id = "vpc-07a421d637fa328fc"
-  cidr_block = "10.0.0.0/24"
+  cidr_block = "	172.31.8.0/20"
   availability_zone = "us-east-1a"
 }
 

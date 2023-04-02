@@ -7,6 +7,52 @@ resource "aws_ecr_repository" "fiap-repository" {
   image_tag_mutability = "MUTABLE"
 }
 
+resource "aws_cloudwatch_log_group" "ecs_logs" {
+  name = "/ecs/ecs-cluster-fiap"
+}
+
+resource "aws_iam_policy" "ecs_logs_policy" {
+  name_prefix = "ecs_logs_policy"
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Effect": "Allow",
+      "Resource": "${aws_cloudwatch_log_group.ecs_logs.arn}:*"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "ecs_task_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_role_attachment" {
+  policy_arn = aws_iam_policy.ecs_logs_policy.arn
+  role       = aws_iam_role.ecs_task_role.name
+}
+
+
 resource "aws_ecr_repository_policy" "fiap-repo-policy" {
   repository = aws_ecr_repository.fiap-repository.name
   policy     = <<EOF
@@ -75,25 +121,33 @@ resource "aws_ecs_task_definition" "fiap-ecs-task-definition" {
   family                   = "ecs-task-definition-fiap"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  memory                   = "1024"
-  cpu                      = "512"
+  memory                   = "2048"
+  cpu                      = "1024"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
   container_definitions    = <<EOF
 [
   {
     "name": "fiap-hackaton",
-    "image": "117369304772.dkr.ecr.us-east-1.amazonaws.com/fiap-hackaton:59218039c3095235621fdc6148c6e81dcd6d45c8",
-    "memory": 1024,
-    "cpu": 512,
+    "image": "117369304772.dkr.ecr.us-east-1.amazonaws.com/fiap-hackaton:71f1baeaa80b642bc9c2717badfea765e2255cee",
+    "memory": 2048,
+    "cpu": 1024,
     "essential": true,
-    "entryPoint": ["/"],
+    "entryPoint": ["java","-Dspring.profiles.active=prod","-Djava.security.egd=file:/dev/./urandom","-jar","/home/gradle/project/app.jar"],
     "portMappings": [
       {
         "containerPort": 80,
         "hostPort": 80
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/ecs-cluster-fiap",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream-prefix": "ecs-cluster-fiap"
+      }
+    }
   }
 ]
 EOF
